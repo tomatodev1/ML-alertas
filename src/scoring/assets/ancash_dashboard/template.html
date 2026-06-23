@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+<script>window.__DATA__ = __DATA_JSON__;</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#091324;}
+  body{font-family:'Segoe UI','Segoe UI Variable',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;}
+  ::selection{background:rgba(43,124,192,.34);}
+  select{font-family:inherit;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+  @keyframes growW{from{transform:scaleX(0);}to{transform:scaleX(1);}}
+  @keyframes sweep{from{stroke-dashoffset:var(--len);}to{stroke-dashoffset:var(--off);}}
+  @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.3;}}
+  @keyframes popIn{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:none;}}
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:9px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+</style>
+</helmet>
+<div style="position:relative;min-height:100vh;background:radial-gradient(1100px 560px at 84% -10%, rgba(43,124,192,.20), transparent 58%), radial-gradient(900px 520px at -6% 4%, rgba(20,70,120,.22), transparent 55%), linear-gradient(162deg,#091324 0%,#0c1c33 52%,#0e2742 100%);color:#e9eef6;overflow-x:hidden;">
+  <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%;opacity:.05;pointer-events:none;z-index:0;">
+    <path d="M0,300 L260,300 L300,210 L360,420 L410,150 L470,300 L1440,300" fill="none" stroke="#6fb4e8" stroke-width="2"></path>
+    <path d="M0,560 L240,560 L290,470 L350,650 L405,420 L460,560 L1440,560" fill="none" stroke="#6fb4e8" stroke-width="1.5"></path>
+  </svg>
+
+  <div style="position:relative;z-index:1;max-width:1500px;margin:0 auto;padding:22px 28px 44px;">
+
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;animation:fadeUp .5s ease both;">
+      <div style="display:flex;align-items:center;gap:16px;">
+
+        <img src="assets/logoPROTECTA.png" alt="Protecta Perú" style="height: 83px; display: block; width: 173px"><div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font-size: 14px; letter-spacing: .2em; text-transform: uppercase; color: #5aa6e0; font-weight: 700">Sistema de Alerta Temprana</span>
+          <span style="font-size: 20px; color: #aebfd2; width: 530px; height: 31px">Modelo predictivo de conflictos sociales · Región Áncash</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+          <span style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #7f93a8; font-weight: 600">Cliente</span>
+          <span style="font-size: 20px; font-weight: 700; color: #fff; letter-spacing: .04em">ANTAMINA</span>
+        </div>
+        <div style="width:1px;height:34px;background:rgba(255,255,255,.14);"></div>
+        <div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-radius:999px;background:rgba(46,197,143,.1);border:1px solid rgba(46,197,143,.34);">
+          <span style="width:8px;height:8px;border-radius:50%;background:#2ec58f;animation:pulseDot 1.8s ease-in-out infinite;"></span>
+          <span style="font-size:11.5px;color:#bdeede;font-weight:600;">Semana {{ weekLabel }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAVEAT -->
+    <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(245,166,35,.09);border:1px solid rgba(245,166,35,.32);border-left:4px solid #f5a623;border-radius:12px;padding:13px 16px;margin-bottom:20px;animation:fadeUp .52s ease both;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#f0dcc0;">Las probabilidades son una <strong style="color:#ffd98a;">estimación</strong> de un modelo con historial aún limitado ({{ nObs }} observaciones desde ago. 2024), <strong style="color:#ffd98a;">no una certeza</strong>. Úsense como apoyo a la decisión, junto con el conocimiento del territorio.</p>
+    </div>
+
+    <!-- SECTION A: PREDICCIÓN POR UGT -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:baseline;gap:11px;">
+        <h2 style="margin:0;font-size:18px;font-weight:700;color:#fff;">Riesgo de protesta en los próximos 30 días</h2>
+        <span style="font-size:12.5px;color:#8497ab;">por Unidad de Gestión Territorial (UGT)</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#a6b7c9;"><span style="width:11px;height:11px;border-radius:3px;background:#ef4d5e;"></span>Alto ≥ 55%</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#a6b7c9;"><span style="width:11px;height:11px;border-radius:3px;background:#f5a623;"></span>Medio 35–54%</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#a6b7c9;"><span style="width:11px;height:11px;border-radius:3px;background:#2ec58f;"></span>Bajo &lt; 35%</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:14px;margin-bottom:14px;">
+
+      <!-- MAPA INTERACTIVO -->
+      <div style="position:relative;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:14px 16px 12px;animation:fadeUp .55s ease both;" onMouseLeave="{{ onMapLeave }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px;">
+          <span style="font-size:12.5px;font-weight:700;color:#cdd9e6;letter-spacing:.02em;">Mapa de Unidades de Gestión Territorial · Áncash</span>
+          <span style="font-size:11px;color:#7f93a8;">Cursor: detalle · Clic: enfocar</span>
+        </div>
+        <div>{{ mapSvg }}</div>
+        <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.08);padding-top:10px;margin-top:2px;">
+          <span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#7f93a8;font-weight:700;">Leyenda</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#a6b7c9;"><span style="width:13px;height:13px;border-radius:3px;background:#ef4d5e;"></span>Riesgo alto</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#a6b7c9;"><span style="width:13px;height:13px;border-radius:3px;background:#f5a623;"></span>Riesgo medio</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#a6b7c9;"><span style="width:13px;height:13px;border-radius:3px;background:#2ec58f;"></span>Riesgo bajo</span>
+        </div>
+      </div>
+
+      <!-- PANEL LATERAL -->
+      <div style="position:relative;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:18px 20px;animation:fadeUp .55s ease both;animation-delay:.05s;overflow:hidden;">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:{{ panelColor }};transition:background .25s ease;"></div>
+
+        <sc-if value="{{ panelDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:13px;height:100%;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+              <div style="display:flex;flex-direction:column;gap:3px;">
+                <span style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#7f93a8;font-weight:700;">Unidad de Gestión Territorial</span>
+                <span style="font-size:19px;font-weight:800;color:#fff;line-height:1.1;">{{ panelName }}</span>
+              </div>
+              <span style="{{ panelBadgeStyle }}">{{ panelLevel }}</span>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:10px;">
+              <span style="{{ panelBigStyle }}">{{ panelProb }}%</span>
+              <span style="font-size:11.5px;color:#8497ab;padding-bottom:5px;line-height:1.35;">probabilidad de protesta<br>en los próximos 30 días</span>
+            </div>
+            <p style="margin:0;font-size:12.5px;line-height:1.55;color:#c4d2e0;">{{ panelDesc }}</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <sc-for list="{{ panelKpis }}" as="k" hint-placeholder-count="4">
+                <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:3px;">
+                  <span style="font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:#7f93a8;font-weight:600;">{{ k.label }}</span>
+                  <span style="font-size:15px;font-weight:700;color:#e9eef6;">{{ k.val }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:auto;display:flex;align-items:center;gap:9px;padding-top:4px;">
+              <span style="font-size:11px;color:#7f93a8;">Acción recomendada:</span>
+              <span style="{{ panelActionStyle }}">{{ panelActionLabel }}</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ panelOverview }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:15px;height:100%;justify-content:center;">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <span style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#7f93a8;font-weight:700;">Región Áncash</span>
+              <span style="font-size:19px;font-weight:800;color:#fff;">4 Unidades de Gestión Territorial</span>
+            </div>
+            <p style="margin:0;font-size:12.5px;line-height:1.55;color:#c4d2e0;">Pase el cursor sobre una UGT del mapa para ver sus <strong style="color:#bcd3e8;">funciones clave</strong> e indicadores. Haga clic para enfocar la tabla y los gráficos en esa unidad.</p>
+            <div style="display:flex;gap:9px;flex-wrap:wrap;">
+              <span style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:rgba(239,77,94,.14);border:1px solid rgba(239,77,94,.34);font-size:12px;font-weight:700;color:#f6a9b2;"><span style="width:9px;height:9px;border-radius:50%;background:#ef4d5e;"></span>{{ altoCount }} en riesgo ALTO</span>
+              <span style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:rgba(46,197,143,.14);border:1px solid rgba(46,197,143,.34);font-size:12px;font-weight:700;color:#9fe6c8;"><span style="width:9px;height:9px;border-radius:50%;background:#2ec58f;"></span>{{ bajoCount }} en riesgo BAJO</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px;font-size:12.5px;color:#8497ab;">
+      <span>Vista enfocada:</span>
+      <span style="{{ focusChipStyle }}">{{ focusLabel }}</span>
+      <sc-if value="{{ isFocused }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ onClearFocus }}" style="padding:4px 11px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#cdd9e6;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;">✕ Ver todas</button>
+      </sc-if>
+      <span style="color:#64768a;">— haga clic en una UGT para enfocar la tabla y los gráficos.</span>
+    </div>
+
+    <!-- SECTION B: CONFIABILIDAD + FRECUENCIA -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:26px;">
+
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:18px 20px;animation:fadeUp .6s ease both;animation-delay:.05s;">
+        <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px;">
+          <span style="font-size:15px;font-weight:700;color:#fff;">¿Qué tan confiable es esta predicción?</span>
+          <span style="font-size:12px;color:#8497ab;">Capacidad de distinguir las semanas de riesgo (0 a 1 — más alto es mejor)</span>
+        </div>
+        <div>{{ modelChart }}</div>
+        <p style="margin:10px 0 12px;font-size:12.5px;line-height:1.5;color:#c4d2e0;">El modelo distingue las semanas de riesgo <strong style="color:#7fc4f0;">mucho mejor que asumir la frecuencia histórica</strong>: obtiene <strong style="color:#7fc4f0;">{{ prAucModelStr }}</strong> frente a <strong style="color:#aebfd2;">{{ prAucBaselineStr }}</strong> de asumir solo la tasa histórica, y supera ese punto de partida en {{ prAucDiffStr }}.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:8px;background:rgba(43,124,192,.14);border:1px solid rgba(43,124,192,.3);font-size:12px;color:#bcdcf5;font-weight:600;">{{ nObs }} observaciones</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:8px;background:rgba(43,124,192,.14);border:1px solid rgba(43,124,192,.3);font-size:12px;color:#bcdcf5;font-weight:600;">{{ nUgts }} UGTs × ~{{ semanasPorUgt }} semanas</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:8px;background:rgba(239,77,94,.14);border:1px solid rgba(239,77,94,.32);font-size:12px;color:#f6c3ca;font-weight:600;">{{ nPosWeeks }} semanas con protesta</span>
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:18px 20px;animation:fadeUp .6s ease both;animation-delay:.1s;">
+        <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:14px;">
+          <span style="font-size:15px;font-weight:700;color:#fff;">Frecuencia histórica de protesta</span>
+          <span style="font-size:12px;color:#8497ab;">% de ventanas de 30 días observadas en que sí hubo una protesta nueva</span>
+        </div>
+        <div>{{ freqChart }}</div>
+      </div>
+
+    </div>
+
+    <!-- SECTION C: ACTIVIDAD OBSERVADA (DIFERENCIADA) -->
+    <div style="position:relative;border-radius:18px;padding:2px;background:linear-gradient(135deg,rgba(245,166,35,.5),rgba(245,166,35,.12));animation:fadeUp .65s ease both;animation-delay:.12s;">
+      <div style="background:linear-gradient(160deg,#1c1a16 0%,#1a1c22 60%,#161e2a 100%);border-radius:16px;padding:20px 22px;">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><rect x="7" y="10" width="3" height="8"></rect><rect x="12" y="6" width="3" height="12"></rect><rect x="17" y="13" width="3" height="5"></rect></svg>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span style="font-size:16px;font-weight:700;color:#fff;">Actividad observada (histórico)</span>
+              <span style="font-size:12px;color:#b6a385;">Eventos reales registrados — contexto, no predicción del modelo</span>
+            </div>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;background:rgba(245,166,35,.16);border:1px solid rgba(245,166,35,.45);font-size:11.5px;font-weight:700;color:#ffd98a;letter-spacing:.02em;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ffd98a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            ACTIVIDAD OBSERVADA — NO ES PREDICCIÓN
+          </span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1.7fr;gap:20px;">
+
+          <!-- Event counts by type -->
+          <div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:13px;">
+              <span style="font-size:13.5px;font-weight:700;color:#f0e6d6;">Eventos por UGT desde ago. 2024</span>
+              <span style="font-size:11.5px;color:#9a8e78;">{{ totalEventos }} en total</span>
+            </div>
+            <div>{{ eventChart }}</div>
+            <div style="display:flex;gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);">
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#cbbfa9;"><span style="width:12px;height:12px;border-radius:3px;background:#e8943a;"></span>Protesta · {{ totalProtesta }}</span>
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#cbbfa9;"><span style="width:12px;height:12px;border-radius:3px;background:#cf3a3a;"></span>Violencia · {{ totalViolencia }}</span>
+            </div>
+          </div>
+
+          <!-- District table -->
+          <div style="display:flex;flex-direction:column;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px;">
+              <span style="font-size:13.5px;font-weight:700;color:#f0e6d6;">Detalle por distrito</span>
+              <span style="font-size:11.5px;font-weight:600;color:#ffd98a;padding:4px 11px;border-radius:999px;background:rgba(245,166,35,.14);border:1px solid rgba(245,166,35,.34);">{{ rowCount }} distritos</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr .8fr 1fr 56px 84px 64px 1.3fr 60px;gap:0;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#9a8e78;font-weight:700;padding:0 7px 9px;border-bottom:1px solid rgba(255,255,255,.12);">
+              <span>UGT</span><span>Provincia</span><span>Distrito</span><span style="text-align:center;">Eventos</span><span style="text-align:center;">Últ. evento</span><span style="text-align:center;">Índice</span><span>Acción recomendada</span><span style="text-align:center;">Noticia</span>
+            </div>
+            <div style="max-height:316px;overflow-y:auto;">
+              <sc-for list="{{ rows }}" as="r" hint-placeholder-count="10">
+                <div style="{{ r.rowStyle }}">
+                  <span style="color:#b9ad97;">{{ r.ugt }}</span>
+                  <span style="color:#b9ad97;">{{ r.provincia }}</span>
+                  <span style="color:#f3ece0;font-weight:600;">{{ r.distrito }}</span>
+                  <span style="text-align:center;color:#d8cdb8;font-weight:600;">{{ r.eventos }}</span>
+                  <span style="text-align:center;color:#a89c86;font-size:11.5px;">{{ r.fecha }}</span>
+                  <span style="display:flex;justify-content:center;"><span style="{{ r.idxStyle }}">{{ r.indice }}</span></span>
+                  <span style="display:flex;align-items:center;gap:7px;"><span style="{{ r.dotStyle }}"></span><span style="color:#ddd2bd;">{{ r.action }}</span></span>
+                  <span style="display:flex;justify-content:center;">
+                    <sc-if value="{{ r.hasNews }}" hint-placeholder-val="{{ true }}">
+                      <a href="{{ r.newsUrl }}" target="_blank" rel="noopener noreferrer" title="Ver noticias sobre {{ r.distrito }}" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.34);color:#f5a623;text-decoration:none;transition:background .15s ease, transform .15s ease;" style-hover="background:rgba(245,166,35,.24);transform:translateY(-1px);">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7l-2-2H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z"></path><path d="M8 11h8"></path><path d="M8 15h5"></path></svg>
+                      </a>
+                    </sc-if>
+                    <sc-if value="{{ r.noNews }}" hint-placeholder-val="{{ false }}">
+                      <span title="Sin eventos registrados" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#56657a;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg>
+                      </span>
+                    </sc-if>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;text-align:center;font-size:11.5px;color:#5f7388;">PROTECTA PERÚ · Modelo de alerta temprana para ANTAMINA — Áncash · Predicción a 30 días por UGT (regresión logística, validación walk-forward). Prototipo demostrativo.</div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1500,&quot;height&quot;:1180}}">
+class Component extends DCLogic {
+  state = { focus:null, hover:null };
+
+  UGT(){
+    return window.__DATA__.ugts;
+  }
+
+  ROWS(){
+    return window.__DATA__.rows;
+  }
+
+  MODEL(){
+    return window.__DATA__.model;
+  }
+
+  level(p){
+    if(p>=55) return {level:'ALTO', color:'#ef4d5e', soft:'#ef4d5e'};
+    if(p>=35) return {level:'MEDIO', color:'#f5a623', soft:'#f5a623'};
+    return {level:'BAJO', color:'#2ec58f', soft:'#2ec58f'};
+  }
+
+  idxMeta(v){
+    if(v>=65) return {color:'#ef4d5e'};
+    if(v>=40) return {color:'#f5a623'};
+    if(v>=1)  return {color:'#4f9fd6'};
+    return {color:'#6b7d90'};
+  }
+
+  action(v){
+    if(v>=65) return {label:'Mesa de diálogo urgente', color:'#ef4d5e'};
+    if(v>=50) return {label:'Intervención preventiva', color:'#f5a623'};
+    if(v>=33) return {label:'Monitoreo reforzado', color:'#e8943a'};
+    return {label:'Vigilancia rutinaria', color:'#2ec58f'};
+  }
+
+  gauge(prob, mt){
+    const h=React.createElement;
+    const W=176,H=104,cx=88,cy=92,r=66,sw=13;
+    const pol=(a)=>[cx+r*Math.cos(a*Math.PI/180), cy+r*Math.sin(a*Math.PI/180)];
+    const arc=(a0,a1)=>{const p0=pol(a0),p1=pol(a1);const large=Math.abs(a1-a0)>180?1:0;const sweep=a1>a0?1:0;return 'M'+p0[0].toFixed(1)+' '+p0[1].toFixed(1)+' A'+r+' '+r+' 0 '+large+' '+sweep+' '+p1[0].toFixed(1)+' '+p1[1].toFixed(1);};
+    const f=Math.max(0,Math.min(100,prob))/100;
+    const endA=180+180*f;
+    const len=Math.PI*r;
+    const kids=[];
+    kids.push(h('path',{key:'tr',d:arc(180,360),fill:'none',stroke:'rgba(255,255,255,.10)',strokeWidth:sw,strokeLinecap:'round'}));
+    kids.push(h('path',{key:'val',d:arc(180,360),fill:'none',stroke:mt.color,strokeWidth:sw,strokeLinecap:'round',pathLength:1,strokeDasharray:1,strokeDashoffset:1-f,style:{transition:'stroke-dashoffset .9s cubic-bezier(.4,0,.2,1)'}}));
+    kids.push(h('text',{key:'v',x:cx,y:cy-12,textAnchor:'middle',fontSize:30,fontWeight:700,fill:'#fff',fontFamily:'Segoe UI, sans-serif'},prob.toFixed(1)+'%'));
+    kids.push(h('text',{key:'l',x:cx,y:cy+8,textAnchor:'middle',fontSize:10.5,fill:'#8497ab',letterSpacing:'.04em'},'prob. 30 días'));
+    return h('svg',{viewBox:'0 0 '+W+' '+H,width:'100%',style:{display:'block',maxWidth:'186px'}},kids);
+  }
+
+  buildModelChart(){
+    const h=React.createElement;
+    const W=520,H=128,L=170,R=58,top=14,gap=26,bh=34,axisMax=0.7;
+    const m=this.MODEL();
+    const data=[{label:'Este modelo',val:m.prAucModel,color:'#2b7cc0',hl:true},{label:'Solo frecuencia histórica',val:m.prAucBaseline,color:'#7d8ea0',hl:false}];
+    const iW=W-L-R;
+    const kids=[];
+    [0,0.35,0.7].forEach(g=>{const x=L+iW*g/axisMax;kids.push(h('line',{key:'g'+g,x1:x,x2:x,y1:top-4,y2:top+gap+bh*2+gap,stroke:'rgba(255,255,255,.08)',strokeWidth:1}));kids.push(h('text',{key:'gt'+g,x:x,y:H-4,textAnchor:'middle',fontSize:9.5,fill:'#5f7388'},g.toFixed(2)));});
+    data.forEach((d,i)=>{
+      const y=top+i*(bh+gap);
+      const w=iW*d.val/axisMax;
+      kids.push(h('text',{key:'lb'+i,x:L-12,y:y+bh/2+1,textAnchor:'end',dominantBaseline:'middle',fontSize:11.5,fontWeight:d.hl?700:600,fill:d.hl?'#dce8f4':'#9fb0c2'},d.label));
+      kids.push(h('rect',{key:'bgr'+i,x:L,y:y,width:iW,height:bh,rx:7,fill:'rgba(255,255,255,.05)'}));
+      kids.push(h('rect',{key:'br'+i,x:L,y:y,width:w,height:bh,rx:7,fill:d.color,style:{transformOrigin:L+'px '+(y+bh/2)+'px',animation:'growW .9s cubic-bezier(.4,0,.2,1) both',animationDelay:(0.15+i*0.12)+'s'}}));
+      kids.push(h('text',{key:'vl'+i,x:L+w+10,y:y+bh/2+1,dominantBaseline:'middle',fontSize:14,fontWeight:700,fill:'#fff'},d.val.toFixed(3)));
+    });
+    return h('svg',{viewBox:'0 0 '+W+' '+H,width:'100%',style:{display:'block'}},kids);
+  }
+
+  buildFreqChart(){
+    const h=React.createElement;
+    const data=this.UGT().slice().sort((a,b)=>b.freq-a.freq);
+    const W=520,H=176,L=158,R=52,top=12,bh=26,gap=12;
+    const iW=W-L-R, max=50;
+    const kids=[];
+    [0,25,50].forEach(g=>{const x=L+iW*g/max;kids.push(h('line',{key:'g'+g,x1:x,x2:x,y1:top-4,y2:top+data.length*(bh+gap)-gap+4,stroke:'rgba(255,255,255,.08)',strokeWidth:1}));kids.push(h('text',{key:'gt'+g,x:x,y:H-3,textAnchor:'middle',fontSize:9.5,fill:'#5f7388'},g+'%'));});
+    data.forEach((d,i)=>{
+      const y=top+i*(bh+gap);
+      const w=iW*d.freq/max;
+      const foc=this.state.focus;
+      const dim=foc&&foc!==d.name;
+      kids.push(h('text',{key:'lb'+i,x:L-12,y:y+bh/2+1,textAnchor:'end',dominantBaseline:'middle',fontSize:11.5,fontWeight:dim?500:700,fill:dim?'#6f8294':'#cdd9e6'},d.name));
+      kids.push(h('rect',{key:'bgr'+i,x:L,y:y,width:iW,height:bh,rx:6,fill:'rgba(255,255,255,.05)'}));
+      kids.push(h('rect',{key:'br'+i,x:L,y:y,width:w,height:bh,rx:6,fill:'#2b7cc0',opacity:dim?0.4:1,style:{transformOrigin:L+'px '+(y+bh/2)+'px',animation:'growW .85s cubic-bezier(.4,0,.2,1) both',animationDelay:(0.1+i*0.08)+'s'}}));
+      kids.push(h('text',{key:'vl'+i,x:L+w+9,y:y+bh/2+1,dominantBaseline:'middle',fontSize:12.5,fontWeight:700,fill:dim?'#7f93a8':'#fff'},d.freq+'%'));
+    });
+    return h('svg',{viewBox:'0 0 '+W+' '+H,width:'100%',style:{display:'block'}},kids);
+  }
+
+  buildEventChart(){
+    const h=React.createElement;
+    const data=this.UGT().slice().sort((a,b)=>(b.protesta+b.violencia)-(a.protesta+a.violencia));
+    const W=420,H=190,L=128,R=40,top=12,bh=26,gap=14;
+    const iW=W-L-R, max=30;
+    const kids=[];
+    [0,10,20,30].forEach(g=>{const x=L+iW*g/max;kids.push(h('line',{key:'g'+g,x1:x,x2:x,y1:top-4,y2:top+data.length*(bh+gap)-gap+4,stroke:'rgba(255,255,255,.07)',strokeWidth:1}));kids.push(h('text',{key:'gt'+g,x:x,y:H-3,textAnchor:'middle',fontSize:9.5,fill:'#6b6051'},g));});
+    data.forEach((d,i)=>{
+      const y=top+i*(bh+gap);
+      const wp=iW*d.protesta/max, wv=iW*d.violencia/max;
+      const foc=this.state.focus, dim=foc&&foc!==d.name;
+      kids.push(h('text',{key:'lb'+i,x:L-11,y:y+bh/2+1,textAnchor:'end',dominantBaseline:'middle',fontSize:11,fontWeight:dim?500:700,fill:dim?'#7a6e58':'#e0d5c0'},d.name));
+      kids.push(h('rect',{key:'bg'+i,x:L,y:y,width:iW,height:bh,rx:6,fill:'rgba(255,255,255,.04)'}));
+      kids.push(h('rect',{key:'p'+i,x:L,y:y,width:wp,height:bh,rx:6,fill:'#e8943a',opacity:dim?0.4:1,style:{transformOrigin:L+'px '+(y+bh/2)+'px',animation:'growW .85s cubic-bezier(.4,0,.2,1) both',animationDelay:(0.1+i*0.07)+'s'}}));
+      kids.push(h('rect',{key:'v'+i,x:L+wp,y:y,width:wv,height:bh,fill:'#cf3a3a',opacity:dim?0.4:1,style:{transformOrigin:L+'px '+(y+bh/2)+'px',animation:'growW .85s cubic-bezier(.4,0,.2,1) both',animationDelay:(0.18+i*0.07)+'s'}}));
+      kids.push(h('text',{key:'t'+i,x:L+wp+wv+9,y:y+bh/2+1,dominantBaseline:'middle',fontSize:12,fontWeight:700,fill:dim?'#7a6e58':'#fff'},d.protesta+d.violencia));
+    });
+    return h('svg',{viewBox:'0 0 '+W+' '+H,width:'100%',style:{display:'block'}},kids);
+  }
+
+  META(){
+    return {
+      'Mina San Marcos':{desc:'Área de influencia directa de la operación minera. Gestiona el relacionamiento comunitario, el empleo local y el uso de suelo en torno al yacimiento.'},
+      'Valle Fortaleza':{desc:'Corredor del mineroducto y vía de acceso. Supervisa el tránsito de concentrado, la gestión hídrica y los acuerdos con las comunidades del valle.'},
+      'Huarmey':{desc:'Terminal portuario de embarque (Punta Lobitos). Coordina la actividad portuaria, la pesca artesanal y el relacionamiento con la población costera.'},
+      'Huallanca':{desc:'Zona altoandina de infraestructura hídrica y energética. Monitorea embalses, suministro y comunidades campesinas de la cuenca alta.'}
+    };
+  }
+
+  buildMap(active){
+    const h=React.createElement;
+    const W=660,H=600;
+    const OUT="M300 54 C268 62 250 92 240 130 C224 184 220 232 232 286 C242 340 268 392 296 446 C312 478 330 500 356 510 C404 496 452 462 498 420 C548 374 580 322 588 280 C594 244 578 200 548 172 C512 138 470 116 430 98 C392 82 344 60 300 54 Z";
+    const Z={
+      'Mina San Marcos':{x:500,y:200,rx:45,ry:35,lab:'above'},
+      'Huallanca':{x:466,y:356,rx:41,ry:32,lab:'right'},
+      'Valle Fortaleza':{x:374,y:360,rx:43,ry:33,lab:'below'},
+      'Huarmey':{x:296,y:448,rx:40,ry:31,lab:'left'}
+    };
+    const meta=this.UGT().reduce((o,u)=>{o[u.name]={prob:u.prob,color:this.level(u.prob).color};return o;},{});
+    const kids=[];
+
+    kids.push(h('defs',{key:'defs'},[
+      h('clipPath',{key:'cp',id:'ancClip'},h('path',{d:OUT})),
+      h('linearGradient',{key:'lg',id:'landG',x1:0,y1:0,x2:1,y2:1},[
+        h('stop',{key:'a',offset:'0%',stopColor:'#1c3a52'}),
+        h('stop',{key:'b',offset:'55%',stopColor:'#173043'}),
+        h('stop',{key:'c',offset:'100%',stopColor:'#122537'})
+      ]),
+      h('linearGradient',{key:'og',id:'oceanG',x1:0,y1:0,x2:1,y2:0},[
+        h('stop',{key:'a',offset:'0%',stopColor:'rgba(43,124,192,.20)'}),
+        h('stop',{key:'b',offset:'100%',stopColor:'rgba(43,124,192,0)'})
+      ])
+    ]));
+
+    // ocean + coast label
+    kids.push(h('rect',{key:'ocean',x:0,y:0,width:230,height:H,fill:'url(#oceanG)'}));
+    for(let i=0;i<3;i++){ kids.push(h('path',{key:'w'+i,d:'M'+(54+i*20)+' 150 q 16 70 0 140 q -16 70 0 140',fill:'none',stroke:'rgba(111,180,232,'+(0.20-i*0.05)+')',strokeWidth:1.6,strokeLinecap:'round'})); }
+    kids.push(h('text',{key:'oce',x:60,y:300,fill:'#5a86b0',fontSize:11,fontWeight:600,letterSpacing:'.18em',transform:'rotate(-90 60 300)',textAnchor:'middle'},'OCÉANO PACÍFICO'));
+
+    // neighbor labels
+    const nb=[['LA LIBERTAD',322,34],['HUÁNUCO',626,250],['LIMA',430,556]];
+    nb.forEach((n,i)=>kids.push(h('text',{key:'nb'+i,x:n[1],y:n[2],fill:'#41566b',fontSize:10.5,fontWeight:600,letterSpacing:'.14em',textAnchor:'middle'},n[0])));
+
+    // landmass
+    kids.push(h('path',{key:'land',d:OUT,fill:'url(#landG)',stroke:'rgba(140,180,214,.5)',strokeWidth:2,strokeLinejoin:'round'}));
+
+    // graticule clipped to land
+    const grat=[];
+    [200,280,360,440,520].forEach((x,i)=>grat.push(h('line',{key:'gx'+i,x1:x,y1:0,x2:x,y2:H,stroke:'rgba(255,255,255,.05)',strokeWidth:1})));
+    [140,240,340,440].forEach((y,i)=>grat.push(h('line',{key:'gy'+i,x1:0,y1:y,x2:W,y2:y,stroke:'rgba(255,255,255,.05)',strokeWidth:1})));
+    kids.push(h('g',{key:'grat',clipPath:'url(#ancClip)'},grat));
+
+    // Cordillera Blanca hint
+    kids.push(h('path',{key:'cord',d:'M360 150 C372 220 392 300 392 372',fill:'none',stroke:'rgba(180,205,228,.16)',strokeWidth:6,strokeLinecap:'round',clipPath:'url(#ancClip)'}));
+
+    // corridor (mineroducto) MSM -> Huallanca -> Valle Fortaleza -> Huarmey
+    const order=['Mina San Marcos','Huallanca','Valle Fortaleza','Huarmey'];
+    const cpath='M'+order.map(n=>Z[n].x+' '+Z[n].y).join(' L');
+    kids.push(h('path',{key:'corr',d:cpath,fill:'none',stroke:'rgba(190,210,230,.45)',strokeWidth:2,strokeDasharray:'6 6',strokeLinecap:'round'}));
+    // corridor caption
+    kids.push(h('text',{key:'corrlab',x:430,y:300,fill:'#7f93a8',fontSize:9.5,fontWeight:600,letterSpacing:'.06em',textAnchor:'middle',transform:'rotate(58 430 300)'},'mineroducto / corredor'));
+
+    // influence zones
+    order.forEach((name,i)=>{
+      const z=Z[name], m=meta[name];
+      const isA=active===name, dim=active&&!isA;
+      const op=isA?0.92:(dim?0.3:0.7);
+      // glow
+      kids.push(h('ellipse',{key:'gl'+i,cx:z.x,cy:z.y,rx:z.rx+(isA?16:8),ry:z.ry+(isA?16:8),fill:m.color,opacity:isA?0.22:0.10,style:{transition:'all .25s ease'}}));
+      kids.push(h('ellipse',{key:'zo'+i,cx:z.x,cy:z.y,rx:z.rx,ry:z.ry,fill:m.color,opacity:op,
+        stroke:isA?'#ffffff':'rgba(255,255,255,.55)',strokeWidth:isA?2.6:1.4,
+        style:{cursor:'pointer',transition:'opacity .2s ease, stroke-width .2s ease',filter:isA?'drop-shadow(0 6px 16px '+m.color+'cc)':'none'},
+        onMouseEnter:()=>this.setState({hover:name}),
+        onClick:()=>this.setState({focus:this.state.focus===name?null:name})}));
+    });
+
+    // endpoint markers (mine origin / port destination)
+    const marker=(x,y,glyph,tag,tx)=>{
+      const g=[h('circle',{key:'c',cx:x,cy:y,r:9,fill:'#0c1c33',stroke:'#fff',strokeWidth:2}),
+        h('text',{key:'g',x:x,y:y+0.5,textAnchor:'middle',dominantBaseline:'central',fontSize:10,fontWeight:800,fill:'#fff'},glyph)];
+      g.push(h('text',{key:'t',x:x,y:y-15,textAnchor:tx,fontSize:9.5,fontWeight:700,fill:'#aebfd2',letterSpacing:'.04em',style:{paintOrder:'stroke',stroke:'rgba(8,18,33,.7)',strokeWidth:3}},tag));
+      return h('g',{key:'mk'+x,style:{pointerEvents:'none'}},g);
+    };
+    kids.push(marker(Z['Mina San Marcos'].x,Z['Mina San Marcos'].y,'M','MINA (origen)','middle'));
+    kids.push(marker(Z['Huarmey'].x,Z['Huarmey'].y,'P','PUERTO (destino)','middle'));
+
+    // zone labels
+    order.forEach((name,i)=>{
+      const z=Z[name], m=meta[name];
+      const dim=active&&active!==name;
+      let lx=z.x, ly=z.y, anchor='middle';
+      if(z.lab==='right'){lx=z.x+z.rx+8;anchor='start';}
+      else if(z.lab==='left'){lx=z.x-z.rx-8;anchor='end';}
+      else if(z.lab==='below'){ly=z.y+z.ry+18;}
+      else {ly=z.y-z.ry-20;} // above
+      const baseY = (z.lab==='left'||z.lab==='right') ? z.y-3 : ly;
+      kids.push(h('g',{key:'lab'+i,style:{pointerEvents:'none',opacity:dim?0.45:1,transition:'opacity .2s ease'}},[
+        h('text',{key:'n',x:lx,y:baseY,textAnchor:anchor,fontSize:11.5,fontWeight:700,fill:'#fff',style:{paintOrder:'stroke',stroke:'rgba(8,18,33,.75)',strokeWidth:3.2,strokeLinejoin:'round'}},name),
+        h('text',{key:'p',x:lx,y:baseY+17,textAnchor:anchor,fontSize:15,fontWeight:800,fill:'#fff',style:{paintOrder:'stroke',stroke:'rgba(8,18,33,.75)',strokeWidth:3.2,strokeLinejoin:'round'}},m.prob.toFixed(1)+'%')
+      ]));
+    });
+
+    // capital pin (Huaraz) for orientation
+    kids.push(h('g',{key:'cap',style:{pointerEvents:'none'}},[
+      h('circle',{key:'o',cx:372,cy:372,r:3.4,fill:'none',stroke:'#dfe8f2',strokeWidth:1.6}),
+      h('circle',{key:'i',cx:372,cy:372,r:1.2,fill:'#dfe8f2'}),
+      h('text',{key:'t',x:378,y:375,fontSize:9,fill:'#9fb0c2',fontWeight:600},'Huaraz')
+    ]));
+
+    // north arrow
+    kids.push(h('g',{key:'north',style:{pointerEvents:'none'}},[
+      h('path',{key:'a',d:'M620 40 L614 58 L620 53 L626 58 Z',fill:'#aebfd2'}),
+      h('text',{key:'n',x:620,y:74,textAnchor:'middle',fontSize:10,fontWeight:700,fill:'#aebfd2'},'N')
+    ]));
+
+    // scale bar
+    kids.push(h('g',{key:'scale',style:{pointerEvents:'none'}},[
+      h('line',{key:'l',x1:40,y1:566,x2:128,y2:566,stroke:'#7f93a8',strokeWidth:2}),
+      h('line',{key:'t1',x1:40,y1:562,x2:40,y2:570,stroke:'#7f93a8',strokeWidth:2}),
+      h('line',{key:'t2',x1:128,y1:562,x2:128,y2:570,stroke:'#7f93a8',strokeWidth:2}),
+      h('text',{key:'t',x:84,y:558,textAnchor:'middle',fontSize:9.5,fill:'#7f93a8'},'~80 km')
+    ]));
+
+    return h('svg',{viewBox:'0 0 '+W+' '+H,width:'100%',style:{display:'block',maxHeight:'460px',margin:'0 auto'}},kids);
+  }
+
+  renderVals(){
+    const focus=this.state.focus, hover=this.state.hover;
+    const active=hover||focus;
+
+    const chip=(c)=>({display:'inline-flex',alignItems:'center',justifyContent:'center',minWidth:'34px',padding:'3px 9px',borderRadius:'7px',fontSize:'12px',fontWeight:700,color:c==='#6b7d90'?'#9fb0c2':c,background:c+'22',border:'1px solid '+c+'55'});
+    const badge=(c)=>({display:'inline-flex',alignItems:'center',padding:'3px 11px',borderRadius:'999px',fontSize:'11px',fontWeight:800,letterSpacing:'.04em',color:c,background:c+'22',border:'1px solid '+c+'66'});
+
+    let panel={panelDetail:false,panelOverview:true,panelColor:'#2b7cc0'};
+    if(active){
+      const u=this.UGT().find(x=>x.name===active);
+      const mt=this.level(u.prob), meta=this.META()[active];
+      const nDist=this.ROWS().filter(r=>r[0]===active).length;
+      const ac=u.prob>=55?{label:'Atención prioritaria',color:'#ef4d5e'}:(u.prob>=35?{label:'Monitoreo reforzado',color:'#f5a623'}:{label:'Vigilancia rutinaria',color:'#2ec58f'});
+      panel={panelDetail:true,panelOverview:false,panelColor:mt.color,
+        panelName:active,panelLevel:mt.level,panelProb:u.prob.toFixed(1),panelDesc:meta.desc,
+        panelBadgeStyle:badge(mt.color),
+        panelBigStyle:{fontSize:'34px',fontWeight:800,lineHeight:1,color:mt.color},
+        panelKpis:[
+          {label:'Nivel de riesgo',val:mt.level},
+          {label:'Eventos históricos',val:String(u.protesta+u.violencia)},
+          {label:'Frecuencia histórica',val:u.freq+'%'},
+          {label:'Distritos cubiertos',val:String(nDist)}
+        ],
+        panelActionLabel:ac.label,
+        panelActionStyle:{display:'inline-flex',alignItems:'center',padding:'4px 12px',borderRadius:'999px',fontSize:'12px',fontWeight:700,color:ac.color,background:ac.color+'20',border:'1px solid '+ac.color+'55'}};
+    }
+
+    let rows=this.ROWS().map(a=>({ugt:a[0],provincia:a[1],distrito:a[2],eventos:a[3],fecha:a[4],indice:a[5]}));
+    if(focus) rows=rows.filter(r=>r.ugt===focus);
+    rows=rows.map(r=>{
+      const im=this.idxMeta(r.indice), ac=this.action(r.indice);
+      const hasNews=r.eventos>0;
+      const newsUrl=hasNews?('https://news.google.com/search?q='+encodeURIComponent('"'+r.distrito+'" Áncash protesta conflicto social Antamina')+'&hl=es-419&gl=PE&ceid=PE:es-419'):'';
+      return {...r, idxStyle:chip(im.color),
+        rowStyle:{display:'grid',gridTemplateColumns:'1fr .8fr 1fr 56px 84px 64px 1.3fr 60px',gap:'0',alignItems:'center',fontSize:'12.5px',padding:'8px 7px',borderBottom:'1px solid rgba(255,255,255,.05)'},
+        dotStyle:{width:'8px',height:'8px',borderRadius:'50%',background:ac.color,flex:'none'},
+        action:ac.label, hasNews, noNews:!hasNews, newsUrl};
+    });
+
+    const focusChip = focus
+      ? {color:'#7fc4f0',label:focus}
+      : {color:'#8497ab',label:'Todas las UGTs'};
+
+    const ugtAll=this.UGT();
+    const meta=window.__DATA__.meta;
+    const totalProtesta=ugtAll.reduce((s,u)=>s+u.protesta,0);
+    const totalViolencia=ugtAll.reduce((s,u)=>s+u.violencia,0);
+    const altoCount=ugtAll.filter(u=>u.prob>=55).length;
+    const medioCount=ugtAll.filter(u=>u.prob>=35&&u.prob<55).length;
+    const bajoCount=ugtAll.filter(u=>u.prob<35).length;
+
+    return {
+      mapSvg:this.buildMap(active),
+      onMapLeave:()=>this.setState({hover:null}),
+      ...panel,
+      modelChart:this.buildModelChart(),
+      freqChart:this.buildFreqChart(),
+      eventChart:this.buildEventChart(),
+      rows, rowCount:rows.length,
+      isFocused:!!focus, focusLabel:focusChip.label,
+      focusChipStyle:{display:'inline-flex',alignItems:'center',padding:'3px 12px',borderRadius:'999px',fontSize:'12px',fontWeight:700,color:focusChip.color,background:focusChip.color+'1f',border:'1px solid '+focusChip.color+'55'},
+      onClearFocus:()=>this.setState({focus:null}),
+      weekLabel:meta.weekLabel, nObs:meta.nObs, nUgts:meta.nUgts, semanasPorUgt:meta.semanasPorUgt,
+      nPosWeeks:meta.nPosWeeks, prAucModelStr:meta.prAucModelStr, prAucBaselineStr:meta.prAucBaselineStr,
+      prAucDiffStr:meta.prAucDiffStr, totalEventos:totalProtesta+totalViolencia, totalProtesta, totalViolencia,
+      altoCount, medioCount, bajoCount
+    };
+  }
+}
+</script>
+<template id="__bundler_thumbnail" data-bg-color="#0c1c33">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#0c1c33"/>
+    <path d="M600 150 C540 165 500 220 480 290 C455 380 450 470 475 580 C490 645 520 700 560 720 C660 695 760 640 850 560 C940 480 985 390 990 320 C995 260 965 195 905 165 C820 130 700 130 600 150 Z" fill="#173043" stroke="#8cb4d6" stroke-width="4"/>
+    <ellipse cx="760" cy="320" rx="78" ry="60" fill="#ef4d5e" opacity="0.82"/>
+    <ellipse cx="700" cy="540" rx="70" ry="55" fill="#2ec58f" opacity="0.82"/>
+    <ellipse cx="560" cy="560" rx="74" ry="57" fill="#ef4d5e" opacity="0.82"/>
+    <ellipse cx="470" cy="660" rx="68" ry="52" fill="#ef4d5e" opacity="0.82"/>
+    <path d="M760 320 L700 540 L560 560 L470 660" fill="none" stroke="#bed2e6" stroke-width="4" stroke-dasharray="12 12" opacity="0.6"/>
+  </svg>
+</template>
+</body>
+</html>

@@ -125,3 +125,32 @@ prediccion-conflictos/
 - Código y comentarios pueden ir en español.
 - Las fechas de corte y ventanas SIEMPRE explícitas en el código (evitar fuga).
 - Antes de proponer un modelo, confirmar que el baseline existe y está medido.
+
+## Estado actual (junio 2026)
+
+### Decisiones de infraestructura
+- Base de datos: SQLite local (`data/riesgo_zona_semana.db`)
+- Despliegue: NO — el sistema corre localmente, sin Railway ni Neon
+- Acceso: solo el analista de datos
+
+### Operación semanal
+Cada lunes ejecutar manualmente:
+```bash
+python src/scoring/score_semanal.py   # calcula riesgo 5 zonas
+python src/scoring/query_riesgo.py    # muestra tabla de resultados
+```
+
+### Modelo activo (Track B)
+- Archivo: models/modelo_v1_track_B.pkl
+- Algoritmo: LightGBM, horizonte y_30, umbral=0.5
+- PR-AUC: 0.714 | Tasa de alerta esperada: 16.7%
+- Zonas: Ica, Pisco, Huarmey, Barranca, Lima Provincias
+
+### Track A (minero) — pausado
+Reactivar cuando haya más historia o fuente de etiqueta alternativa.
+Zonas pendientes: Áncash, Huánuco, Pasco, Cajamarca, La Libertad
+
+### Fase 5 — Validación operativa
+Cada viernes anotar en una hoja simple:
+¿Hubo conflicto/protesta real esta semana en cada zona? (sí/no)
+Con 6 semanas de datos ya puedes calcular el recall operativo real.
