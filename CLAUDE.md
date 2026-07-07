@@ -1,4 +1,4 @@
-# Proyecto: Modelo Predictivo de Conflictos Sociales — Áncash (ANTAMINA)
+ # Proyecto: Modelo Predictivo de Conflictos Sociales — Áncash (ANTAMINA)
 
 Sistema de alerta temprana que estima, por Unidad de Gestión Territorial (UGT)
 de ANTAMINA en Áncash y con anticipación, la probabilidad de un conflicto
