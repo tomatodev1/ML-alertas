@@ -12,7 +12,23 @@
       "Bash(cd \"c:/ML alertas/ML-alertas\" && ls \"C:/Users/Operador_03/.claude/projects/c--ML-alertas-ML-alertas/memory/\" 2>/dev/null && echo \"---MEMORY.md---\" && cat \"C:/Users/Operador_03/.claude/projects/c--ML-alertas-ML-alertas/memory/MEMORY.md\" 2>/dev/null | head -30)",
       "Read(//c/Users/Operador_03/.claude/projects/c--ML-alertas-ML-alertas/memory/**)",
       "Bash(powershell -Command \"Select-String -Path 'data/processed/Dashboard Predictivo Antamina.html' -Pattern 'Math\\\\.sin' | Select-Object -First 5\")",
-      "Bash(powershell -Command ' *)"
+      "Bash(powershell -Command ' *)",
+      "Bash(python -m pip install python-docx python-pptx -q)",
+      "Bash(python -c ' *)",
+      "Bash(python -m pip install -r requirements.txt -q)",
+      "Bash(python -c \"import numpy; print\\('numpy ok'\\)\")",
+      "Bash(python \"C:/Users/OPERAD~2/AppData/Local/Temp/claude/c--ML-alertas/44a6ce6b-b7ca-4d75-9e30-f17e944a58b7/scratchpad/extraer_actores.py\")",
+      "Bash(python \"C:/Users/OPERAD~2/AppData/Local/Temp/claude/c--ML-alertas/44a6ce6b-b7ca-4d75-9e30-f17e944a58b7/scratchpad/leer_xlsx.py\")",
+      "Bash(python \"C:/proyectos/dashboard/dashboard-antamina/scripts/generar_data_prueba.py\")",
+      "Bash(python \"C:/Users/OPERAD~2/AppData/Local/Temp/claude/c--ML-alertas/44a6ce6b-b7ca-4d75-9e30-f17e944a58b7/scratchpad/generar_oof_serie.py\")",
+      "Bash(git -C \"C:/proyectos/dashboard/dashboard-antamina\" status)",
+      "Bash(git commit *)",
+      "Bash(git branch *)",
+      "Bash(gh auth *)"
+    ],
+    "additionalDirectories": [
+      "C:\\proyectos\\dashboard\\dashboard-antamina",
+      "C:\\proyectos\\dashboard\\dashboard-antamina\\scripts"
     ]
   }
 }
