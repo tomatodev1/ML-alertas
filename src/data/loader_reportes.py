@@ -59,14 +59,31 @@ def _extraer_pptx(ruta: Path) -> str:
 
 
 def _fecha_de_nombre(nombre: str) -> pd.Timestamp | None:
-    m = PAT_FECHA.search(nombre)
-    if not m:
+    """Fecha del reporte = ÚLTIMA fecha del nombre. Los reportes mensuales
+    nuevos se nombran por periodo ("09.06.26 al 09.07.26"); usar la fecha
+    inicial fecharía el reporte antes de que existiera (fuga temporal)."""
+    matches = PAT_FECHA.findall(nombre)
+    if not matches:
         return None
-    dd, mm, yy = m.groups()
+    dd, mm, yy = matches[-1]
     try:
         return pd.Timestamp(year=2000 + int(yy), month=int(mm), day=int(dd))
     except ValueError:
         return None
+
+
+def _vigencia_dias(nombre: str) -> int:
+    """Días que el contenido del reporte se considera vigente en las features
+    `rep_*_4w`: 28 (ventana de 4 semanas) para reportes de una sola fecha; el
+    largo del periodo (mínimo 28) para mensuales "dd.mm.aa al dd.mm.aa"."""
+    matches = PAT_FECHA.findall(nombre)
+    if len(matches) >= 2:
+        try:
+            f = [pd.Timestamp(year=2000 + int(y), month=int(m), day=int(d)) for d, m, y in (matches[0], matches[-1])]
+            return max(28, int((f[1] - f[0]).days))
+        except ValueError:
+            pass
+    return 28
 
 
 def parsear_reportes() -> pd.DataFrame:
@@ -83,6 +100,7 @@ def parsear_reportes() -> pd.DataFrame:
             fecha = _fecha_de_nombre(archivo.stem)
             if fecha is None:
                 continue
+            vigencia = _vigencia_dias(archivo.stem)
             try:
                 texto = _extraer_docx(archivo) if archivo.suffix.lower() == ".docx" else _extraer_pptx(archivo)
             except Exception:
@@ -105,6 +123,9 @@ def parsear_reportes() -> pd.DataFrame:
                         "menciona_antamina": menciona_antamina,
                         "tono_negativo": tono_negativo,
                         "tono_compromiso": tono_compromiso,
+                        "vigencia_dias": vigencia,
+                        "archivo": archivo.name,
+                        "texto": parrafo.strip()[:600],
                     })
     return pd.DataFrame(filas)
 

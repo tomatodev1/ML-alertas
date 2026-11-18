@@ -11,6 +11,66 @@ cambiarse sin justificación.
 
 ---
 
+## 0. Actualización 2026-11-18 — modelo v2 (leer primero)
+
+> Las secciones 6.2–6.10 describen el modelo **v1** (julio 2026). Donde
+> difieran, manda esta sección.
+
+**Datos (corte 2026-11-14, última semana completa con cierre 2026-11-15).**
+`dataIncidentes.xlsx` y `dataFormulario.xlsx` actualizados al 14/18-nov-2026.
+El archivo nuevo de incidentes viene filtrado (solo accidente/protesta/
+homicidio), así que el loader lo **une** con la versión de junio
+(`src/data/respaldo_2026-06/`) y deduplica. Se agregaron 5 reportes mensuales
+de Antamina (jun–nov 2026, `src/data/2026/reportes_mensuales/`), fechados por
+el **fin** de su periodo. Defensoría actualizada a jul-2026 (los meses no
+publicados se tratan como faltantes). Calendario extendido a 2027 con la
+segunda vuelta regional del 6-dic-2026.
+
+**Fuga corregida en el label.** En v1, `y_30` contaba desde el martes de la
+misma semana cuyas features (`inc_prot_1w`) ya contaban eventos hasta el
+domingo: un mismo evento era feature y label. Ahora la semana se identifica
+por su domingo de cierre (`semana_fin`), las features usan datos ≤ domingo y
+`y_h` mira (domingo, domingo + h]. Con el label viejo, la LR v1 "lograba"
+PR-AUC 0.86 / ROC-AUC 0.75 en el mismo esquema de validación; con el label
+correcto obtiene 0.69 / 0.61: el 0.80 reportado en julio estaba inflado.
+
+**Validación.** Walk-forward con purga (`src/models/evaluacion_ancash.py`):
+para predecir la semana T solo se entrena con filas cuyo label era observable
+en T (cierre + 30 ≤ T); reentrenamiento cada 4 semanas. Filas de modelado
+desde sep-2024 (antes, 0–8 eventos/mes en todo Áncash: falta de cobertura,
+no ausencia de protesta).
+
+| OOF (360 semanas-UGT, ene-2025 → oct-2026) | PR-AUC | ROC-AUC | Brier |
+|---|---|---|---|
+| Baseline tasa histórica por UGT | 0.689 | 0.592 | 0.233 |
+| v1: LR balanced, 19 features (reevaluada sin fuga) | 0.690 | 0.607 | 0.258 |
+| **v2: LR sin balanceo, 8 núcleo + UGT (desplegado)** | **0.767** | **0.641** | **0.232** |
+| RF depth 4, 15 features + UGT (contraste) | 0.727 | 0.659 | 0.221 |
+
+v2 supera al baseline en los 3 sub-periodos (2025-S1, 2025-S2, 2026); IC90
+bootstrap por semana de ΔPR-AUC vs baseline: [+0.031, +0.119] (v1: [−0.061,
++0.068]). Go/no-go: +0.079 → GO. El RF no pasa (+0.038).
+
+**Features v2:** `inc_prot_1w`, `inc_prot_4w`, `racha_prot`,
+`dias_desde_ultima_prot` (NaN → 365), `rep_antamina_neg_4w`,
+`rep_compromiso_4w`, `es_fecha_critica`, `es_semana_electoral` + one-hot de
+UGT. Fuera: mes/trimestre/semana_iso (estacionalidad espuria con <2 años),
+`tasa_pobreza` (constante), OEFA (fuente congelada en dic-2024: su ventana de
+12 meses decae a 0 artificialmente), Defensoría departamental, violencia.
+
+**Umbrales** (`src/models/recalibrar_umbral.py`, `models/umbrales_ancash.json`):
+ALTO ≥ **0.80** (sin cambio; precisión OOF 0.84, recall 0.36), MEDIO ≥ **0.63**
+(antes 0.44; = tasa base OOF), BAJO < 0.63. Ojo: el nivel BAJO todavía tiene
+52% de semanas con protesta (tasa base 63%): el modelo discrimina poco en la
+cola baja.
+
+**Operación semanal:** copiar los archivos nuevos a `src/data/` y correr
+`python export_dashboard.py --actualizar-fuentes` → regenera y valida
+`export_dashboard/` (contrato del dashboard estático). Validar solo:
+`python -m src.export.validar_dashboard`.
+
+---
+
 ## Índice rápido
 
 1. [El problema que resuelve](#1-el-problema-que-resuelve)

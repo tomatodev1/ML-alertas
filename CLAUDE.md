@@ -145,20 +145,27 @@ ML alertas/
 - Antes de proponer un cambio al modelo, confirmar que el baseline existe y
   está medido.
 
-## Estado actual (julio 2026)
+## Estado actual (noviembre 2026)
 
-### Modelo activo (Track A — Áncash, UGT × semana)
-- Archivo: `models/modelo_v1_track_A_ancash.pkl`
-- Algoritmo: regresión logística (`class_weight="balanced"`), horizonte `y_30`
-- PR-AUC modelo (logistic_regression): **0.8004** (3 folds efectivos; Fold 1
-  skip porque Jan-Jun 2024 tiene 0 positivos en entrenamiento — propio de los
-  datos, no un bug). PR-AUC baseline: 0.554 → GO (+0.2464). Walk-forward RF:
-  0.7922. Se guarda LR por probabilidades bien calibradas (Huarmey 90.3%, spread
-  amplio), vs RF que comprime probabilidades ~63% para todas las UGTs.
-- Dataset: 444 observaciones (4 UGTs × ~111 semanas), 195 con protesta (43.9%)
-- **Umbral de alerta calibrado** (`src/models/recalibrar_umbral.py`,
-  2026-06-30): ALTO ≥ 80% (precisión 75%, recall 69%, tasa alerta 59%),
-  MEDIO 44–79%, BAJO < 44%.
+### Modelo activo (Track A — Áncash, UGT × semana) — v2, 2026-11-18
+- Archivo: `models/modelo_v2_track_A_ancash.pkl` (v1 respaldado en
+  `models/modelo_v1_track_A_ancash_2026-07-08.pkl`). Umbrales en
+  `models/umbrales_ancash.json`.
+- Algoritmo: regresión logística SIN `class_weight` (probabilidades
+  calibradas), horizonte `y_30`. Features: 8 núcleo (`inc_prot_1w`,
+  `inc_prot_4w`, `racha_prot`, `dias_desde_ultima_prot`, `rep_antamina_neg_4w`,
+  `rep_compromiso_4w`, `es_fecha_critica`, `es_semana_electoral`) + one-hot UGT.
+- **Semana = domingo de cierre** (`semana_fin`). Features con datos ≤ domingo;
+  `y_h` mira (domingo, domingo+h]. v1 solapaba 6 días label/feature (fuga):
+  su PR-AUC 0.80 estaba inflado (sin fuga: 0.69 ≈ baseline).
+- Validación: walk-forward con purga (`src/models/evaluacion_ancash.py`),
+  filas de modelado desde 2024-09-08 (antes no hay cobertura continua de
+  fuentes). OOF 360 filas: PR-AUC **0.767** vs baseline 0.689 (GO, +0.079),
+  ROC-AUC 0.641, Brier 0.232.
+- Umbrales: ALTO ≥ 0.80 (precisión OOF 0.84, recall 0.36), MEDIO ≥ 0.63
+  (= tasa base OOF; antes 0.44), BAJO < 0.63. Histéresis ±0.02.
+- Corte de datos 2026-11-14; dataset 600 filas (150 semanas × 4), 440
+  modelables, 59.5% positivos.
 
 ### Extensión de ventana histórica (infraestructura lista, bloqueada)
 - Se descargaron 62 PDFs de la Defensoría (2018–2023, 86% cobertura).
@@ -185,6 +192,11 @@ ML alertas/
 
 ### Operación semanal
 ```bash
+# 1) copiar dataIncidentes.xlsx / dataFormulario.xlsx / reportes nuevos a src/data/
+powershell -ExecutionPolicy Bypass -File actualizar_dashboard.ps1  # todo: modelo + paquete + data.json del dashboard
+#    (luego commit/push de data/data.json en c:\proyectos\dashboard\dashboard-antamina)
+python export_dashboard.py --actualizar-fuentes   # solo: reentrena, exporta y valida export_dashboard/
+python -m src.export.validar_dashboard            # solo validar el paquete
 python -m src.scoring.score_ancash               # predicción por UGT (consola)
 python -m src.scoring.dashboard_ancash_predictivo # dashboard interactivo
 ```
@@ -210,7 +222,8 @@ Cada viernes anotar: ¿hubo conflicto/protesta real esta semana en cada UGT?
 real y contrastarlo contra el PR-AUC de validación.
 
 ### Limitaciones honestas (ver README_ANCASH.md, sección 12)
-Dataset todavía pequeño (444 filas, 195 positivos/43.9%). Umbral calibrado
-(ALTO≥80%, MEDIO≥44%) con predicciones OOF — válido solo para el modelo
-actual; si cambia el feature set hay que recalibrar. Features de contexto
+Dataset todavía pequeño (440 filas modelables, 59.5% positivos). Señal
+débil: ROC-AUC OOF 0.64; el nivel BAJO aún tiene ~52% de semanas con
+protesta. Umbrales (ALTO≥0.80, MEDIO≥0.63) calibrados sobre OOF del modelo
+v2 — si cambia el feature set hay que recalibrar (`--recalibrar`). Features de contexto
 departamental limitadas. Ver sección 12 del README para lista completa.

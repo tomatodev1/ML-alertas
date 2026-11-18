@@ -5,8 +5,14 @@ resolución SEMANAL (lo que Defensoría, mensual, no permitía). La unidad es la
 UGT de ANTAMINA (Mina San Marcos, Huallanca, Valle Fortaleza, Huarmey), que es
 la unidad operativa real del cliente y da un label no trivial.
 
-Anti-fuga: features de la semana t usan datos hasta el fin de t; el label y_h
-mira la ventana futura [t+1, t+h].
+Convención de semana (desde 2026-11-18): cada fila se identifica por
+`semana_inicio` (lunes) y `semana_fin` (domingo de cierre). La semana que se
+exporta al dashboard es `semana_fin`.
+
+Anti-fuga: las features de la semana t usan SOLO datos con fecha <= semana_fin
+(domingo); el label y_h mira la ventana futura (semana_fin, semana_fin + h].
+Antes de esta fecha el label arrancaba en semana_inicio + 1 día, solapando 6
+días con la ventana de `inc_prot_1w` (mismo evento como feature y como label).
 """
 import sys
 import warnings
@@ -25,7 +31,10 @@ SALIDA = PROCESSED_DIR / "master_ancash_ugt.parquet"
 UGTS = ["Mina San Marcos", "Huallanca", "Valle Fortaleza", "Huarmey"]
 HORIZONTES = [14, 30, 60]
 FECHA_INICIO = "2024-01-01"
-FECHA_CORTE = pd.Timestamp("2026-04-13")  # mismo corte que la tabla maestra principal
+# Fecha de corte de datos observados: se calcula en construir() como la
+# última fecha con eventos en las fuentes de label (ver _fecha_corte_datos).
+# Un label y_h solo es válido si semana_fin + h <= FECHA_CORTE.
+FECHA_CORTE: pd.Timestamp | None = None
 
 # Inicio de cobertura continua y fiable de dataIncidentes + dataFormulario.
 # Antes de esta fecha el label viene de la Defensoría mensual (proxy menos sensible).
@@ -54,6 +63,23 @@ def _floor_to_monday(fechas: pd.Series) -> pd.Series:
     return fechas.dt.normalize() - pd.to_timedelta(fechas.dt.weekday, unit="D")
 
 
+def _fin_semana(semana_inicio) -> np.ndarray:
+    """Domingo de cierre de cada semana, como datetime64[ns]."""
+    return np.asarray(semana_inicio, dtype="datetime64[ns]") + np.timedelta64(6, "D")
+
+
+def _fecha_corte_datos() -> pd.Timestamp:
+    """Último día observado en las fuentes de label: el MÍNIMO entre la última
+    fecha de dataIncidentes y la de dataFormulario (conservador: un día solo
+    cuenta como observado si ambas fuentes ya lo cubren)."""
+    from src.scoring.ancash_datos import _cargar_formulario_protestas_raw
+    inc = _cargar_incidentes_raw()
+    max_inc = inc.loc[inc["fuente"] == "dataIncidentes", "fecha"].max()
+    max_form = _cargar_formulario_protestas_raw()["fecha"].max()
+    candidatos = [f for f in (max_inc, max_form) if pd.notna(f)]
+    return min(candidatos).normalize()
+
+
 def _racha_consecutiva(s: pd.Series) -> pd.Series:
     """Semanas consecutivas con al menos 1 evento (se reinicia en 0 al no haber)."""
     tiene = (s > 0).astype(int)
@@ -72,6 +98,12 @@ def _cargar_defensoria() -> pd.DataFrame:
     for col in ["escalamiento_zona", "escalamiento_zona_prev", "escalamiento_global"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
+    # Mes aún no publicado: la API devuelve 0 en el KPI global (nunca 0 en un
+    # mes real). Se trata como faltante para que el ffill use el último
+    # reporte efectivamente publicado, en vez de un falso "escalamiento 0".
+    if "escalamiento_global" in df.columns:
+        no_publicado = df["escalamiento_global"].fillna(0) == 0
+        df.loc[no_publicado, ["escalamiento_zona", "escalamiento_global"]] = np.nan
     df = df.drop_duplicates(subset=["zona", "año", "mes_num"])
     return df
 
@@ -156,8 +188,8 @@ def _dias_desde_ultima(skeleton: pd.DataFrame, eventos: pd.DataFrame) -> pd.Seri
         if len(ev) == 0:
             continue
         skel = skeleton[skeleton["ugt"] == ugt]
-        sv = skel["semana_inicio"].values.astype("datetime64[ns]")
-        pos = np.searchsorted(ev, sv, side="left") - 1
+        sv = _fin_semana(skel["semana_inicio"].values)  # as-of domingo de cierre
+        pos = np.searchsorted(ev, sv, side="right") - 1
         dias = np.full(len(sv), np.nan)
         ok = pos >= 0
         dias[ok] = (sv[ok].astype("int64") - ev[pos[ok]].astype("int64")) / 86_400_000_000_000
@@ -168,16 +200,16 @@ def _dias_desde_ultima(skeleton: pd.DataFrame, eventos: pd.DataFrame) -> pd.Seri
 # ── Label anti-fuga ───────────────────────────────────────────────────────────
 def _labels(master: pd.DataFrame, inc: pd.DataFrame) -> pd.DataFrame:
     prot = inc[inc["categoria"] == "PROTESTA"]
-    corte = np.datetime64(FECHA_CORTE)
+    corte = np.datetime64(FECHA_CORTE, "ns")
     for h in HORIZONTES:
         col = f"y_{h}"
         master[col] = np.nan
         for ugt in UGTS:
             ev = np.sort(prot[prot["ugt"] == ugt]["fecha"].values.astype("datetime64[ns]"))
             idx = master[master["ugt"] == ugt].index
-            sv = master.loc[idx, "semana_inicio"].values.astype("datetime64[ns]")
-            ini = sv + np.timedelta64(1, "D")
-            fin = sv + np.timedelta64(h, "D")
+            sf = _fin_semana(master.loc[idx, "semana_inicio"].values)
+            ini = sf + np.timedelta64(1, "D")   # lunes siguiente al cierre
+            fin = sf + np.timedelta64(h, "D")   # cierre + h días (inclusive)
             if len(ev) > 0:
                 hay = (np.searchsorted(ev, ini, "left") < np.searchsorted(ev, fin, "right")).astype(float)
             else:
@@ -290,7 +322,7 @@ def _join_oefa(master: pd.DataFrame) -> pd.DataFrame:
     for ugt in UGTS:
         ev = np.sort(oefa_min[oefa_min["ugt"] == ugt]["fecha"].values.astype("datetime64[ns]"))
         idx = master[master["ugt"] == ugt].index
-        sv = master.loc[idx, "semana_inicio"].values.astype("datetime64[ns]")
+        sv = _fin_semana(master.loc[idx, "semana_inicio"].values)
         ini = sv - np.timedelta64(364, "D")  # ventana móvil de 12 meses (anti-fuga: solo hacia atrás)
         if len(ev) > 0:
             conteo.loc[idx] = (np.searchsorted(ev, sv, "right") - np.searchsorted(ev, ini, "left")).astype(int)
@@ -316,6 +348,11 @@ def _join_reportes(master: pd.DataFrame) -> pd.DataFrame:
 
     rep = pd.read_parquet(ruta)
     rep["fecha_reporte"] = pd.to_datetime(rep["fecha_reporte"])
+    # Vigencia de cada párrafo: 28 días (ventana de 4 semanas, reportes
+    # semanales) o el largo del periodo si es un reporte mensual ("09.06.26 al
+    # 09.07.26", ~31 días), para que las semanas entre dos mensuales no caigan a 0.
+    vig = rep["vigencia_dias"] if "vigencia_dias" in rep.columns else pd.Series(28, index=rep.index)
+    rep["vigencia_dias"] = vig.fillna(28).clip(lower=28).astype(int)
     neg = rep[rep["menciona_antamina"] & rep["tono_negativo"]]
     compromiso = rep[rep["tono_compromiso"]]
 
@@ -323,12 +360,16 @@ def _join_reportes(master: pd.DataFrame) -> pd.DataFrame:
     out = {c: np.zeros(len(master), dtype=int) for c in cols_salida}
     for ugt in UGTS:
         idx = master[master["ugt"] == ugt].index
-        sv = master.loc[idx, "semana_inicio"].values.astype("datetime64[ns]")
-        ini = sv - np.timedelta64(28, "D")  # ventana móvil de 4 semanas
+        sv = _fin_semana(master.loc[idx, "semana_inicio"].values)  # as-of domingo
         for col, fuente in [("rep_antamina_neg_4w", neg), ("rep_compromiso_4w", compromiso)]:
-            ev = np.sort(fuente[fuente["ugt"] == ugt]["fecha_reporte"].values.astype("datetime64[ns]"))
-            if len(ev) > 0:
-                out[col][idx] = (np.searchsorted(ev, sv, "right") - np.searchsorted(ev, ini, "left")).astype(int)
+            f = fuente[fuente["ugt"] == ugt]
+            if f.empty:
+                continue
+            ev = f["fecha_reporte"].values.astype("datetime64[ns]")
+            hasta = ev + f["vigencia_dias"].values.astype("timedelta64[D]")
+            # párrafo vigente en sv: publicado <= sv <= publicado + vigencia
+            vigente = (ev[None, :] <= sv[:, None]) & (sv[:, None] <= hasta[None, :])
+            out[col][idx] = vigente.sum(axis=1).astype(int)
     for c in cols_salida:
         master[c] = out[c]
     return master
@@ -415,8 +456,8 @@ def _join_historica(master: pd.DataFrame) -> pd.DataFrame:
         if len(ev) == 0:
             continue
         idx = master[master["ugt"] == ugt].index
-        sv = master.loc[idx, "semana_inicio"].values.astype("datetime64[ns]")
-        # acumulado: todos los eventos estrictamente anteriores a la semana
+        sv = _fin_semana(master.loc[idx, "semana_inicio"].values)
+        # acumulado: todos los eventos estrictamente anteriores al cierre
         acum[idx] = np.searchsorted(ev, sv, side="left")
         # ventana móvil 5 años (1820 días ≈ 260 semanas)
         ini5 = sv - np.timedelta64(1820, "D")
@@ -467,11 +508,19 @@ def _join_impacto(master: pd.DataFrame) -> pd.DataFrame:
 
 
 # ── Principal ─────────────────────────────────────────────────────────────────
-def construir() -> pd.DataFrame:
-    semanas = pd.date_range(FECHA_INICIO, FECHA_CORTE, freq="W-MON")
+def construir(fecha_corte: pd.Timestamp | None = None) -> pd.DataFrame:
+    """Tabla maestra UGT × semana desde FECHA_INICIO hasta la última semana
+    COMPLETA (domingo de cierre <= fecha de corte + 1 día, para aceptar un
+    corte en sábado). Las semanas recientes quedan con label NaN (aún no
+    observable) y sirven para el scoring en vivo."""
+    global FECHA_CORTE
+    FECHA_CORTE = pd.Timestamp(fecha_corte or _fecha_corte_datos()).normalize()
+    ultimo_lunes = FECHA_CORTE + pd.Timedelta(days=1) - pd.Timedelta(days=6)
+    semanas = pd.date_range(FECHA_INICIO, ultimo_lunes, freq="W-MON")
     skeleton = pd.DataFrame(list(product(UGTS, semanas)), columns=["ugt", "semana_inicio"])
 
     inc = _incidentes_por_ugt()
+    inc = inc[inc["fecha"] <= FECHA_CORTE + pd.Timedelta(days=1)]  # anti-fuga defensivo
     master = _features_incidentes(skeleton, inc)
     master = _join_calendario(master)
     master = _join_inei(master)
@@ -484,8 +533,10 @@ def construir() -> pd.DataFrame:
     master = _join_historica(master)
     master = _labels(master, inc)
 
-    # Limpieza: descartar semanas sin label y_60 computable; rellenar conteos
-    master = master[master["semana_inicio"] <= FECHA_CORTE - pd.Timedelta(days=60)].copy()
+    master["semana_fin"] = master["semana_inicio"] + pd.Timedelta(days=6)
+    master["fecha_corte_datos"] = FECHA_CORTE
+    # Se conservan TODAS las semanas completas; las que no tienen label
+    # observable quedan con y_h = NaN (entrenamiento las descarta, scoring las usa).
     cols_count = [c for c in master.columns if c.startswith("inc_") or c.startswith("delta_") or c == "racha_prot"]
     master[cols_count] = master[cols_count].fillna(0)
     # prot_impacto_ultimo: NaN real (no hubo protesta previa todavía) -> 0,
@@ -507,7 +558,8 @@ def main() -> None:
     master.to_csv(SALIDA.with_suffix(".csv"), index=False)
 
     print(f"✓ Dataset Áncash (UGT × semana) construido: {len(master)} filas, {master['ugt'].nunique()} UGTs")
-    print(f"  Rango: {master['semana_inicio'].min().date()} → {master['semana_inicio'].max().date()}")
+    print(f"  Corte de datos: {FECHA_CORTE.date()}")
+    print(f"  Rango (domingo de cierre): {master['semana_fin'].min().date()} → {master['semana_fin'].max().date()}")
     for h in HORIZONTES:
         sub = master[f"y_{h}"].dropna()
         print(f"  y_{h}: {sub.mean()*100:.1f}% positivos ({int(sub.sum())}/{len(sub)})")

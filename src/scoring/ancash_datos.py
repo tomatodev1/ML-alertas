@@ -15,7 +15,27 @@ import pandas as pd
 
 ARCHIVO_INCIDENTES = Path("src/data") / "dataIncidentes.xlsx"
 ARCHIVO_FORMULARIO = Path("src/data") / "dataFormulario.xlsx"
+# Versiones previas congeladas. La actualización del 2026-11-18 trajo un
+# dataIncidentes filtrado (solo accidente/protesta/homicidio) que omite
+# registros que la versión de junio sí tenía (robos, detenciones, reclamos).
+# Se UNEN ambas versiones y se deduplica, para no perder eventos históricos.
+RESPALDOS_INCIDENTES = sorted((Path("src/data") / "respaldo_2026-06").glob("dataIncidentes*.xlsx"))
 HOJA = "Hoja1"
+
+
+def _leer_excel_con_encabezado(ruta: Path, columna_clave: str) -> pd.DataFrame:
+    """Lee la primera hoja que contenga `columna_clave` en alguna de sus
+    primeras 10 filas, usando esa fila como encabezado (las exportaciones
+    nuevas traen filas/columnas vacías antes de la tabla)."""
+    hojas = pd.read_excel(ruta, sheet_name=None, header=None, nrows=10)
+    for nombre, muestra in hojas.items():
+        for i in range(len(muestra)):
+            valores = [str(v).strip() for v in muestra.iloc[i].tolist()]
+            if columna_clave in valores:
+                df = pd.read_excel(ruta, sheet_name=nombre, header=i)
+                df.columns = [str(c).strip() for c in df.columns]
+                return df.loc[:, ~df.columns.str.startswith("Unnamed")]
+    raise ValueError(f"{ruta}: no se encontró la columna {columna_clave!r} en ninguna hoja")
 
 # ── Jerarquía territorial de ANTAMINA (tabla UGT → Provincia → Distrito) ──────
 JERARQUIA: list[tuple[str, str, str]] = [
@@ -90,18 +110,29 @@ def _cargar_incidentes_raw() -> pd.DataFrame:
     combinaciones (distrito, fecha) que dataIncidentes NO tiene, para no
     contar el mismo evento dos veces si aparece en ambas fuentes.
     """
-    raw = pd.read_excel(ARCHIVO_INCIDENTES, sheet_name=HOJA, header=0)
+    partes = [_leer_excel_con_encabezado(r, "ID_FECHA") for r in [ARCHIVO_INCIDENTES, *RESPALDOS_INCIDENTES]]
+    raw = pd.concat(partes, ignore_index=True)
     df = pd.DataFrame()
-    df["fecha"] = pd.to_datetime(raw["ID_FECHA"], errors="coerce", format="mixed")
+    df["fecha"] = pd.to_datetime(raw["ID_FECHA"], errors="coerce", format="mixed").dt.normalize()
     df["depto_n"] = raw["ID_DEPARTAMENTO"].apply(_norm).str.upper()
     df["distrito_n"] = raw["DISTRITO"].apply(_norm)
+    df["motivo"] = raw["MOTIVO"].astype(str).str.strip()
     df["categoria"] = raw["MOTIVO"].apply(lambda m: MOTIVO_A_CATEGORIA.get(_norm(m).upper(), "OTRO"))
     df["titulo"] = raw["TITULO"].astype(str).str.strip()
+    df["url"] = raw["LINK"].astype(str).str.strip() if "LINK" in raw.columns else ""
+    df["url"] = df["url"].where(df["url"].str.startswith("http"), "")
+    df["fuente"] = "dataIncidentes"
     df["lat"] = np.nan
     df["lon"] = np.nan
     df = df[df["fecha"].notna()].copy()
     df = df[df["depto_n"].isin({_norm(d).upper() for d in DEPTOS_VALIDOS})]
-    df = df.drop_duplicates(subset=["fecha", "distrito_n", "titulo"])
+    # Dedup entre versiones: misma fecha, distrito y motivo/título normalizados.
+    # Se prefiere la fila que trae URL (versión nueva).
+    df["_tit_n"] = df["titulo"].apply(_norm)
+    df = (df.sort_values("url", ascending=False)
+            .drop_duplicates(subset=["fecha", "distrito_n", "categoria", "_tit_n"])
+            .drop(columns="_tit_n")
+            .sort_values("fecha").reset_index(drop=True))
 
     formulario = _cargar_formulario_protestas_raw()
     ya_cubiertas = set(zip(
@@ -125,7 +156,17 @@ def _cargar_formulario_protestas_raw() -> pd.DataFrame:
     df["depto_n"] = raw["ID_Departamento"].apply(_norm).str.upper()
     df["distrito_n"] = raw["Distrito"].astype(str).apply(_norm)
     df["categoria"] = "PROTESTA"
-    df["titulo"] = raw["Insertar noticia (Formato tabla de ChatGTP)"].astype(str).str.strip()
+    df["motivo"] = "Protestas, Paros y Bloqueos"
+    # El formulario cambió de columnas en nov-2026: el titular pasó a
+    # `Id_Noticias` y se agregó `Link de la noticia`.
+    col_titulo = next((c for c in ["Insertar noticia (Formato tabla de ChatGTP)", "Id_Noticias"] if c in raw.columns), None)
+    df["titulo"] = raw[col_titulo].astype(str).str.strip() if col_titulo else ""
+    col_link = next((c for c in raw.columns if str(c).startswith("Link")), None)
+    df["url"] = raw[col_link].astype(str).str.strip() if col_link else ""
+    df["url"] = df["url"].where(df["url"].str.startswith("http"), "")
+    col_rel = next((c for c in raw.columns if str(c).startswith("Relevancia")), None)
+    df["relevancia"] = raw[col_rel].astype(str).str.strip() if col_rel else ""
+    df["fuente"] = "dataFormulario"
     df["lat"] = np.nan
     df["lon"] = np.nan
 

@@ -1,0 +1,36 @@
+{
+  "modelo": "logistic_regression",
+  "version": "2026-11-18",
+  "horizonte_dias": 30,
+  "target": "y_30",
+  "umbral_alto": 0.8,
+  "umbral_medio": 0.63,
+  "n_niveles": 3,
+  "features": [
+    "inc_prot_1w",
+    "inc_prot_4w",
+    "racha_prot",
+    "dias_desde_ultima_prot",
+    "rep_antamina_neg_4w",
+    "rep_compromiso_4w",
+    "es_fecha_critica",
+    "es_semana_electoral",
+    "ugt_mina_san_marcos",
+    "ugt_huallanca",
+    "ugt_valle_fortaleza",
+    "ugt_huarmey"
+  ],
+  "metricas_oof": {
+    "auc": 0.6414,
+    "brier": 0.2316,
+    "pr_auc": 0.767
+  },
+  "semana_mas_reciente": "2026-11-15",
+  "entrenado_hasta": "2026-10-11",
+  "fecha_corte_datos": "2026-11-14",
+  "metricas_oof_baseline": {
+    "auc": 0.5924,
+    "brier": 0.2334,
+    "pr_auc": 0.6885
+  }
+}

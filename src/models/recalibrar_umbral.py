@@ -1,111 +1,119 @@
-"""Calibración del umbral de alerta — Track A Áncash (UGT × semana).
+"""Calibración de umbrales ALTO / MEDIO — Track A Áncash, sobre predicciones OOF.
 
-Hoy el dashboard usa 55%/35% como referencia VISUAL para ALTO/MEDIO/BAJO,
-sin respaldo estadístico. Este script calcula un umbral real a partir de las
-predicciones out-of-fold de la validación walk-forward (cada semana se
-predice solo con un modelo entrenado con datos estrictamente anteriores,
-igual que en producción — no hay fuga).
+Regla (v2, 2026-11-18), con probabilidades calibradas (LR sin balanceo):
+  - ALTO  = menor umbral (rejilla de 0.01) tal que la precisión OOF de
+            "alerta si p >= umbral" es >= PRECISION_ALTO para ese umbral Y
+            para todos los superiores (evita picos inestables).
+  - MEDIO = tasa base de protesta en las filas OOF (redondeada a 0.01):
+            "probabilidad por encima del promedio histórico". Es la misma
+            semántica que tenía v1 (MEDIO = 44% = tasa histórica de entonces).
+  - BAJO  = por debajo de MEDIO.
 
-Regla de decisión: el umbral elegido debe cumplir recall>=RECALL_MIN Y
-precision>=PRECISION_MIN simultáneamente (mismo criterio que se usó para
-Track B). Si ningún umbral cumple ambos pisos a la vez, se cae a un
-fallback de máximo F1.
+Los umbrales se guardan en models/umbrales_ancash.json y los leen el scoring
+y el export del dashboard. Se recalculan SOLO al correr este módulo (o
+`export_dashboard.py --recalibrar`): los textos del dashboard dependen de
+ellos, no deben moverse cada semana.
 """
+from __future__ import annotations
+
+import json
 import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.base import clone
-from sklearn.metrics import f1_score, precision_score, recall_score
-from sklearn.model_selection import TimeSeriesSplit
 
-from src.models.train_ancash import FEATURES, MASTER, MODELOS, N_SPLITS, TARGET, _preparar
+from src.models import evaluacion_ancash as ev
 
-SALIDA = Path("data/processed") / "calibracion_umbral_ancash.csv"
-MODELO_FINAL = "logistic_regression"  # debe coincidir con el que guarda train_ancash.py
+OOF_PATH = Path("data/processed") / "oof_ancash.parquet"
+UMBRALES_PATH = Path("models") / "umbrales_ancash.json"
+TABLA_PATH = Path("data/processed") / "calibracion_umbral_ancash.csv"
 
-RECALL_MIN = 0.40
-PRECISION_MIN = 0.35
-CANDIDATOS = np.round(np.arange(0.05, 0.96, 0.01), 2)
+PRECISION_ALTO = 0.80
+REJILLA = np.round(np.arange(0.30, 0.96, 0.01), 2)
 
 
-def _predicciones_oof(X: pd.DataFrame, y: pd.Series) -> tuple[np.ndarray, np.ndarray]:
-    """Probabilidad predicha para cada fila SOLO cuando cae en el conjunto de
-    prueba de algún fold walk-forward (out-of-fold) — nunca se evalúa una
-    fila con un modelo que la vio en entrenamiento."""
-    tscv = TimeSeriesSplit(n_splits=N_SPLITS)
-    probs = np.full(len(y), np.nan)
-    for tr, te in tscv.split(X):
-        if y.iloc[tr].nunique() < 2 or y.iloc[te].nunique() < 2:
-            continue
-        modelo = clone(MODELOS[MODELO_FINAL]).fit(X.iloc[tr], y.iloc[tr])
-        probs[te] = modelo.predict_proba(X.iloc[te])[:, 1]
-    mask = ~np.isnan(probs)
-    return probs[mask], y.values[mask]
-
-
-def _barrer_umbrales(probs: np.ndarray, y: np.ndarray) -> pd.DataFrame:
+def barrer(y: pd.Series, p: pd.Series) -> pd.DataFrame:
     filas = []
-    for t in CANDIDATOS:
-        pred = (probs >= t).astype(int)
-        filas.append({
-            "umbral": t,
-            "precision": precision_score(y, pred, zero_division=0),
-            "recall": recall_score(y, pred, zero_division=0),
-            "f1": f1_score(y, pred, zero_division=0),
-            "tasa_alerta": pred.mean(),
-        })
+    for t in REJILLA:
+        prec, rec, tasa = ev.precision_recall_acumulado(y, p, t)
+        filas.append({"umbral": t, "precision": prec, "recall": rec, "tasa_alerta": tasa})
     return pd.DataFrame(filas)
 
 
-def elegir_umbral(tabla: pd.DataFrame) -> tuple[pd.Series, str]:
-    cumplen = tabla[(tabla["recall"] >= RECALL_MIN) & (tabla["precision"] >= PRECISION_MIN)]
-    if not cumplen.empty:
-        return cumplen.sort_values("f1", ascending=False).iloc[0], (
-            f"cumple recall>={RECALL_MIN} y precision>={PRECISION_MIN} (de los que cumplen, máximo F1)"
-        )
-    return tabla.sort_values("f1", ascending=False).iloc[0], (
-        f"NINGÚN umbral cumplió recall>={RECALL_MIN} y precision>={PRECISION_MIN} a la vez — fallback a máximo F1"
-    )
+VENTANA_ESTABILIDAD = 0.10   # la precisión debe sostenerse en [t, t + 0.10]
+HISTERESIS = 0.02            # cambios menores a esto no mueven el umbral vigente
+UMBRALES_V1 = {"umbral_alto": 0.80, "umbral_medio": 0.44}
+
+
+def _vigentes() -> dict:
+    try:
+        return cargar()
+    except (FileNotFoundError, ValueError):
+        return dict(UMBRALES_V1)
+
+
+def calibrar(y: pd.Series, p: pd.Series, vigentes: dict | None = None) -> dict:
+    tabla = barrer(y, p)
+    prec = tabla.set_index("umbral")["precision"].fillna(0)
+    alto = float(REJILLA.max())
+    for t in REJILLA:
+        ventana = prec[(prec.index >= t - 1e-9) & (prec.index <= t + VENTANA_ESTABILIDAD + 1e-9)]
+        if (ventana >= PRECISION_ALTO).all():
+            alto = float(t)
+            break
+    medio = round(float(y[p.notna()].mean()), 2)
+
+    vig = vigentes if vigentes is not None else _vigentes()
+    nota = []
+    if abs(alto - vig["umbral_alto"]) <= HISTERESIS + 1e-9:
+        nota.append(f"ALTO calculado {alto:.2f} ≈ vigente {vig['umbral_alto']:.2f} (histéresis) → se mantiene")
+        alto = vig["umbral_alto"]
+    if abs(medio - vig["umbral_medio"]) <= HISTERESIS + 1e-9:
+        nota.append(f"MEDIO calculado {medio:.2f} ≈ vigente {vig['umbral_medio']:.2f} (histéresis) → se mantiene")
+        medio = vig["umbral_medio"]
+    if medio >= alto:
+        medio = round(alto - 0.05, 2)
+    return {"umbral_alto": round(alto, 2), "umbral_medio": round(medio, 2), "tabla": tabla,
+            "notas": nota,
+            "regla": (f"ALTO: menor umbral cuya precisión OOF acumulada se mantiene >= {PRECISION_ALTO} "
+                      f"en [t, t+{VENTANA_ESTABILIDAD}]; MEDIO: tasa base OOF de protesta; "
+                      f"histéresis ±{HISTERESIS} respecto al umbral vigente")}
+
+
+def guardar(umbrales: dict, n_oof: int) -> None:
+    UMBRALES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    UMBRALES_PATH.write_text(json.dumps({
+        "umbral_alto": umbrales["umbral_alto"],
+        "umbral_medio": umbrales["umbral_medio"],
+        "n_niveles": 3,
+        "regla": umbrales["regla"],
+        "n_oof": n_oof,
+        "fecha_calibracion": str(pd.Timestamp.now().date()),
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def cargar() -> dict:
+    return json.loads(UMBRALES_PATH.read_text(encoding="utf-8"))
 
 
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
-    master = pd.read_parquet(MASTER)
-    X, y = _preparar(master)
-
-    probs, y_eval = _predicciones_oof(X, y)
-    print(f"Predicciones out-of-fold: {len(probs)} de {len(y)} filas totales "
-          f"({len(y) - len(probs)} quedaron fuera por caer en el primer fold de entrenamiento)\n")
-
-    tabla = _barrer_umbrales(probs, y_eval)
-    tabla.to_csv(SALIDA, index=False)
-
-    elegido, motivo = elegir_umbral(tabla)
-    print(f"Criterio: {motivo}\n")
-    print(f"{'Umbral':<8} | {'Precisión':<10} | {'Recall':<8} | {'F1':<8} | {'Tasa alerta':<12}")
-    print("-" * 58)
-    for t in [0.35, 0.45, 0.50, 0.55, 0.65, round(float(elegido['umbral']), 2)]:
-        fila = tabla.iloc[(tabla["umbral"] - t).abs().idxmin()]
-        marca = " <- elegido" if abs(fila["umbral"] - elegido["umbral"]) < 1e-9 else ""
-        print(f"{fila['umbral']:<8.2f} | {fila['precision']:<10.3f} | {fila['recall']:<8.3f} | "
-              f"{fila['f1']:<8.3f} | {fila['tasa_alerta']*100:<11.1f}%{marca}")
-
-    print(f"""
-╔════════════════════════════════════════════════════════╗
-║   UMBRAL CALIBRADO — Track A Áncash                      ║
-╠════════════════════════════════════════════════════════╣
-  Umbral:        {elegido['umbral']:.2f}
-  Precisión:     {elegido['precision']:.3f}
-  Recall:        {elegido['recall']:.3f}
-  F1:            {elegido['f1']:.3f}
-  Tasa de alerta: {elegido['tasa_alerta']*100:.1f}% de las semana-UGT
-╚════════════════════════════════════════════════════════╝
-""")
-    print(f"✓ Tabla completa guardada en {SALIDA}")
-    print(f"\nSiguiente paso manual: actualizar el umbral ALTO en score_ancash.py / "
-          f"dashboard_ancash_predictivo.py de 0.55 a {elegido['umbral']:.2f} si se decide adoptar este valor.")
+    oof = pd.read_parquet(OOF_PATH)
+    y, p = oof["y_30"].astype(int), oof["prob"]
+    vig = _vigentes()
+    u = calibrar(y, p, vig)
+    for n in u["notas"]:
+        print("  ·", n)
+    if (u["umbral_alto"], u["umbral_medio"]) != (vig["umbral_alto"], vig["umbral_medio"]):
+        print(f"  ⚠ CAMBIO DE UMBRALES: ALTO {vig['umbral_alto']:.2f} → {u['umbral_alto']:.2f} · "
+              f"MEDIO {vig['umbral_medio']:.2f} → {u['umbral_medio']:.2f} (actualizar textos del dashboard)")
+    u["tabla"].to_csv(TABLA_PATH, index=False)
+    guardar(u, len(oof))
+    print(f"Umbrales calibrados sobre {len(oof)} predicciones OOF: ALTO >= {u['umbral_alto']:.2f} · "
+          f"MEDIO >= {u['umbral_medio']:.2f}")
+    print(ev.metricas_por_nivel(y, p, u["umbral_alto"], u["umbral_medio"]).to_string(index=False))
+    print(f"✓ Guardado en {UMBRALES_PATH}")
 
 
 if __name__ == "__main__":

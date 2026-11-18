@@ -9,7 +9,7 @@ SALIDA = INTERIM_DIR / "calendario.parquet"
 
 # ── Rango de generación ───────────────────────────────────────────────────────
 FECHA_INICIO = "2024-01-01"
-FECHA_FIN = "2026-12-31"
+FECHA_FIN = "2027-12-31"
 
 # ── Eventos electorales ───────────────────────────────────────────────────────
 ELECCIONES = [
@@ -17,6 +17,10 @@ ELECCIONES = [
     "2026-04-11",  # Elecciones Generales 2026 - Primera vuelta
     "2026-06-07",  # Elecciones Generales 2026 - Segunda vuelta
     "2026-10-04",  # ERM 2026 - Elecciones Regionales y Municipales
+    # Segunda vuelta regional ERM 2026: JNE la movió del 29-nov al 6-dic
+    # (DS 150-2026-PCM). Áncash figura en la lista preliminar ONPE de regiones
+    # en segunda vuelta (src/data/calendario_electoral_2026.xlsx).
+    "2026-12-06",
 ]
 
 # ── Fechas críticas ───────────────────────────────────────────────────────────
@@ -33,6 +37,11 @@ FECHAS_CRITICAS = [
     "2026-09-13",
     "2026-09-20",
     "2026-09-27",
+    # 4 semanas pre-segunda vuelta regional 2026 (6-dic)
+    "2026-11-15",
+    "2026-11-22",
+    "2026-11-29",
+    "2026-12-06",
 ]
 
 # ── Feriados nacionales del Perú 2024-2026 ────────────────────────────────────
@@ -81,7 +90,21 @@ FERIADOS = {
     "2026-10-08",
     "2026-11-01",
     "2026-12-08",
+    "2026-12-06",  # Segunda vuelta regional ERM 2026
     "2026-12-25",
+    # 2027 (Pascua = 28 mar)
+    "2027-01-01",
+    "2027-03-25",  # Jueves Santo
+    "2027-03-26",  # Viernes Santo
+    "2027-05-01",
+    "2027-06-29",
+    "2027-07-28",
+    "2027-07-29",
+    "2027-08-30",
+    "2027-10-08",
+    "2027-11-01",
+    "2027-12-08",
+    "2027-12-25",
 }
 
 MESES_ES = {

@@ -25,14 +25,20 @@ MESES = [
     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ]
 
-AÑOS = [2024, 2025, 2026]
+import datetime as _dt
+_HOY = _dt.date.today()
+AÑOS = list(range(2024, _HOY.year + 1))
 
 SLEEP = 1.5  # segundos entre POSTs
 
 SALIDA = Path("data/raw/defensoria/defensoria_historico.csv")
 
-# Fecha de corte: incluir hasta este mes/año (inclusive)
-AÑO_CORTE, MES_CORTE = 2026, 6
+# Fecha de corte: el mes anterior al actual (inclusive). El reporte del mes M
+# se publica durante M+1; los meses aún no publicados devuelven 0 y quedan
+# corregidos en la siguiente corrida. El anti-fuga lo da el rezago de 2 meses
+# aplicado en build_ancash._join_defensoria.
+_ULT = (_HOY.replace(day=1) - _dt.timedelta(days=1))
+AÑO_CORTE, MES_CORTE = _ULT.year, _ULT.month
 
 
 # ── Constructores de payload ───────────────────────────────────────────────────
